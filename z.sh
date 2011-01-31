@@ -74,6 +74,19 @@ z() {
    }
   ' "$datafile" 2>/dev/null
 
+ elif test "$1" && echo "$1" | egrep '^[0-9]*$' >/dev/null; then
+   #$1 is an integer, go up $1 directories 
+   local d=""
+   limit=$1
+   for ((i=1 ; i <= limit ; i++))
+     do
+     d=$d/..
+   done
+   d=$(echo $d | sed 's/^\///')
+   if [ -z "$d" ]; then
+     d=..
+   fi
+   cd $d
  else
   # list/go
   while [ "$1" ]; do case "$1" in
