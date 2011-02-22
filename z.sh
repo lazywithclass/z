@@ -1,4 +1,5 @@
 #!/bin/bash
+# Copyright (c) 2009 rupa deadwyler under the WTFPL license
 
 # maintains a jump-list of the directories you actually use
 #
@@ -14,10 +15,10 @@
 #   * PROFIT!!
 #
 # USE:
-#   * z foo     # goes to most frecent dir matching foo
-#   * z foo bar # goes to most frecent dir matching foo and bar
-#   * z -r foo  # goes to highest ranked dir matching foo
-#   * z -t foo  # goes to most recently accessed dir matching foo
+#   * z foo     # cd to most frecent dir matching foo
+#   * z foo bar # cd to most frecent dir matching foo and bar
+#   * z -r foo  # cd to highest ranked dir matching foo
+#   * z -t foo  # cd to most recently accessed dir matching foo
 #   * z -l foo  # list all dirs matching foo (by frecency)
 
 z() {
@@ -32,6 +33,7 @@ z() {
   [ "$*" = "$HOME" ] && return
 
   # maintain the file
+  local tempfile="$(mktemp $datafile.XXXXXX)" || return
   awk -v path="$*" -v now="$(date +%s)" -F"|" '
    BEGIN {
     rank[path] = 1
@@ -52,8 +54,8 @@ z() {
      for( i in rank ) print i "|" 0.9*rank[i] "|" time[i] # aging
     } else for( i in rank ) print i "|" rank[i] "|" time[i]
    }
-  ' "$datafile" 2>/dev/null > "$datafile.tmp"
-  mv -f "$datafile.tmp" "$datafile"
+  ' "$datafile" 2>/dev/null > "$tempfile"
+  env mv -f "$tempfile" "$datafile"
 
  # tab completion
  elif [ "$1" = "--complete" ]; then
@@ -105,7 +107,8 @@ z() {
   # no file yet
   [ -f "$datafile" ] || return
 
-  local cd="$(awk -v t="$(date +%s)" -v list="$list" -v typ="$typ" -v q="$fnd" -v tmpfl="$datafile.tmp" -F"|" '
+  local tempfile="$(mktemp $datafile.XXXXXX)" || return
+  local cd="$(awk -v t="$(date +%s)" -v list="$list" -v typ="$typ" -v q="$fnd" -v tmpfl="$tempfile" -F"|" '
    function frecent(rank, time) {
     dx = t-time
     if( dx < 3600 ) return rank*4
@@ -166,9 +169,9 @@ z() {
    }
   ' "$datafile")"
   if [ $? -gt 0 ]; then
-   rm -f "$datafile.tmp"
+   env rm -f "$tempfile"
   else
-   mv -f "$datafile.tmp" "$datafile"
+   env mv -f "$tempfile" "$datafile"
    [ "$cd" ] && cd "$cd"
   fi
  fi
@@ -177,6 +180,9 @@ z() {
 if complete &> /dev/null; then
   # bash tab completion
   complete -C 'z --complete "$COMP_LINE"' z
+  # populate directory list. avoid clobbering other PROMPT_COMMANDs.
+  echo $PROMPT_COMMAND | grep -q "z --add"
+  [ $? -gt 0 ] && PROMPT_COMMAND='z --add "$(pwd -P 2>/dev/null)";'"$PROMPT_COMMAND"
 elif compctl &> /dev/null; then
   # zsh tab completion
   _z_zsh_tab_completion() {
@@ -186,7 +192,3 @@ elif compctl &> /dev/null; then
   }
   compctl -U -K _z_zsh_tab_completion z
 fi
-
-# populate directory list. avoid clobbering other PROMPT_COMMANDs.
-echo $PROMPT_COMMAND | grep -q "z --add"
-[ $? -gt 0 ] && PROMPT_COMMAND='z --add "$(pwd -P 2>/dev/null)";'"$PROMPT_COMMAND"
