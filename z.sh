@@ -20,6 +20,7 @@
 #   * z -r foo  # cd to highest ranked dir matching foo
 #   * z -t foo  # cd to most recently accessed dir matching foo
 #   * z -l foo  # list all dirs matching foo (by frecency)
+#   * z 2       # goes up in the directory tree by 2 directories
 
 z() {
 
